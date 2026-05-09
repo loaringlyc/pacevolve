@@ -127,7 +127,7 @@ def query_server(
                 max_retries=3,
             )
             model = model_name
-            assert model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"], "Only support deepseek-chat or deepseek-coder for now"
+            assert model in ["deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro"], "Not support model name"
             if not is_safe_to_send_to_deepseek(prompt):
                 raise RuntimeError("Prompt is too long for DeepSeek")
         case "fireworks":
@@ -221,7 +221,7 @@ def query_server(
 
     elif server_type == "deepseek":
         
-        if model in ["deepseek-chat", "deepseek-coder"]:
+        if model in ["deepseek-chat", "deepseek-coder", "deepseek-v4-flash"]:
             # regular deepseek model 
             response = client.chat.completions.create(
                     model=model,
@@ -234,8 +234,23 @@ def query_server(
                 n=num_completions,
                 max_tokens=max_tokens,
                 top_p=top_p,
+            )   
+        elif model == "deepseek-v4-pro":
+            response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                stream=False,
+                # reasoning_effort="high",
+                # extra_body={"thinking": {"type": "enabled"}},
+                temperature=0.0,
+                top_p=1.0,
+                extra_body={"thinking": {"type": "disabled"}},
+                n=num_completions,
+                max_tokens=max_tokens,
             )
-
         else: # deepseek reasoner
             assert is_reasoning_model, "Only support deepseek-reasoner for now"
             assert model == "deepseek-reasoner", "Only support deepseek-reasoner for now"
