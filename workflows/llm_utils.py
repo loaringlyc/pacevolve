@@ -139,8 +139,11 @@ if OPENAI_AVAILABLE:
     class OpenAIClient(LLMClient):
         def __init__(self, config: Dict[str, Any]):
             super().__init__(config)
-            self.model_name = self.config.get("name", "gpt-5.2-pro")
-            self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            self.model_name = self.config.get("name", "deepseek-v4-pro")
+            self.client = OpenAI(
+                api_key=os.environ.get("DEEPSEEK_API_KEY"),
+                base_url="https://api.deepseek.com"
+            )
 
         def count_tokens(self, text: str) -> int:
             """Returns the number of tokens in a text string."""
@@ -155,7 +158,8 @@ if OPENAI_AVAILABLE:
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": generation_config.get("temperature", 1.0),
                 "top_p": generation_config.get("top_p", 0.95),
-                "max_tokens": generation_config.get("max_output_tokens", 4096)
+                "max_tokens": generation_config.get("max_output_tokens", 4096),
+                "extra_body": {"thinking": {"type": "disabled"}},
             }
             response = self.client.chat.completions.create(**params)
             return response.choices[0].message.content
@@ -229,10 +233,10 @@ def get_llm_client(llm_name: str, config: Dict[str, Any]) -> LLMClient:
         return _CLIENT_CACHE[llm_name]
 
     llm_config = config.get('llm', {})
-    client_type = llm_config.get('client_type', 'gemini')
+    client_type = llm_config.get('client_type', 'openai')
     
     # Override client_type based on model name if user just switched the name
-    if 'gpt' in llm_name or 'openai' in llm_name:
+    if 'gpt' in llm_name or 'openai' in llm_name or 'deepseek' in llm_name:
         client_type = 'openai'
     elif 'claude' in llm_name or 'anthropic' in llm_name:
         client_type = 'anthropic'

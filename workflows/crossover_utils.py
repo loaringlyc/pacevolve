@@ -167,7 +167,7 @@ class AdaptiveCrossoverScheduler:
                 m_best = absolute_progresses[j]
                 j_best = j
 
-        # No other island exists or all are worse
+        # No other island exists 
         if j_best == -1: 
             logger.info(f"Island {triggered_island_idx}: Triggered, but no better islands exist. BACKTRACK.")
             return ("BACKTRACK", None)

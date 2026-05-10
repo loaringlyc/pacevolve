@@ -24,20 +24,27 @@ class EvalConfig:
   """Evaluation configuration for a single consistent hashing scenario."""
   dataset: str
 
-def recompile_library(config: dict) -> CompletedProcess:
-    comp_config = config['compilation']
+def _build_eval_command(config: dict) -> str:
     EVAL_PATH = os.path.expanduser(config['paths']['eval_path'])
+    SRC_PATH = os.path.expanduser(config['paths']['src_path'])
     EVAL_SCRIPT = os.path.join(
       EVAL_PATH, config['evaluation']['eval_script_name']
     )
     baseline_unversioned = config['evaluation']['kernel_name'].split("-")[0]
     BASELINE_PATH = os.path.join(EVAL_PATH, "baseline", baseline_unversioned+".py")
-    KERNEL_BASE_PATH = os.path.join(config['paths']['src_path'], "kernels", config['evaluation']['kernel_name'])
+    KERNEL_BASE_PATH = os.path.join(SRC_PATH, "kernels", config['evaluation']['kernel_name'])
     KERNEL_PATH = os.path.join(KERNEL_BASE_PATH, "kernel.py")
-    CONDA_PREFIX = f"/opt/conda/bin/conda run -n {config['compilation']['conda_env']} "
-    command = (
-      f"{CONDA_PREFIX} python {EVAL_SCRIPT} --baseline_path {BASELINE_PATH} --kernel_path {KERNEL_PATH} --baseline_time {config['evaluation']['baseline_time']} --build_dir {KERNEL_BASE_PATH}"
+    conda_env = config['compilation']['conda_env']
+    return (
+      f"conda run -n {conda_env} bash -lc "
+      f"'python {EVAL_SCRIPT} --baseline_path {BASELINE_PATH} "
+      f"--kernel_path {KERNEL_PATH} --baseline_time {config['evaluation']['baseline_time']} "
+      f"--build_dir {KERNEL_BASE_PATH}'"
     )
+
+def recompile_library(config: dict) -> CompletedProcess:
+    comp_config = config['compilation']
+    command = _build_eval_command(config)
     logger.info(f"recompile_library: Running command: {command}")
     process_result = _call_shell_command(
       command, timeout=comp_config['recompile_timeout'], max_retries=comp_config['recompile_max_retries']
@@ -71,18 +78,7 @@ def evaluate_dataset(
   eval_config: EvalConfig,
   config: dict,
 ) -> CompletedProcess:
-  EVAL_PATH = os.path.expanduser(config['paths']['eval_path'])
-  EVAL_SCRIPT = os.path.join(
-    EVAL_PATH, config['evaluation']['eval_script_name']
-  )
-  baseline_unversioned = config['evaluation']['kernel_name'].split("-")[0]
-  BASELINE_PATH = os.path.join(EVAL_PATH, "baseline", baseline_unversioned+".py")
-  KERNEL_BASE_PATH = os.path.join(config['paths']['src_path'], "kernels", config['evaluation']['kernel_name'])
-  KERNEL_PATH = os.path.join(KERNEL_BASE_PATH, "kernel.py")
-  CONDA_PREFIX = f"/opt/conda/bin/conda run -n {config['compilation']['conda_env']} "
-  eval_command = (
-    f"{CONDA_PREFIX} python {EVAL_SCRIPT} --baseline_path {BASELINE_PATH} --kernel_path {KERNEL_PATH} --baseline_time {config['evaluation']['baseline_time']} --build_dir {KERNEL_BASE_PATH}"
-  )
+  eval_command = _build_eval_command(config)
 
   logger.info(f"evaluate_dataset: Running {eval_command}")
   process_result_eval = _call_shell_command(

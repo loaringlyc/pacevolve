@@ -52,7 +52,13 @@ parser.add_argument(
 args = parser.parse_args()
 
 # eval_kernel_against_ref(original_model_src=read_file(args.baseline_path), custom_model_src=read_file(args.baseline_path), measure_performance=True)
-result = eval_kernel_against_ref(original_model_src=read_file(args.baseline_path), custom_model_src=read_file(args.kernel_path), baseline_time=args.baseline_time, measure_performance=True, build_dir=args.build_dir)
+result = eval_kernel_against_ref(
+    original_model_src=read_file(args.baseline_path),
+    custom_model_src=read_file(args.kernel_path),
+    # baseline_time=args.baseline_time,
+    measure_performance=True,
+    build_dir=args.build_dir,
+)
 
 if result is None:
     print("[Eval Script] Exiting with error code 1 due to lack of output.")
@@ -63,3 +69,9 @@ elif not result.compiled:
 elif not result.correctness:
     print("[Eval Script] Exiting with error code 1 due to incorrect kernel.")
     sys.exit(1)
+elif result.runtime <= 0:
+    print("[Eval Script] Exiting with error code 1 because runtime was not measured.")
+    sys.exit(1)
+
+print(f"Kernel runtime: {result.runtime:.6f}")
+print(f"Kernel speedup: {args.baseline_time / result.runtime:.6f}")

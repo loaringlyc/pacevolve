@@ -15,13 +15,14 @@
 # Configuration for the KNN experiment workflow.
 
 llm:
-  name: "gemini-2.5-pro"
+  name: "deepseek-v4-pro"
+  client_type: "openai"
   context_size: 120000
   safety_margin: 600
   max_try_count: 5
 
 experiment:
-  max_iters: 1000
+  max_iters: 3
   task_id: "kernel_bench"
   max_hparam_iters: 0
   sota_algo_name: "BATCHNORM" # From prompts.py
@@ -30,19 +31,19 @@ experiment:
 
 paths:
   # Using ~ for home directory is supported.
-  data_path: "~/auto_evo/tasks/kernel_bench/data"
-  src_path: "~/auto_evo/tasks/kernel_bench/src"
-  eval_path: "~/auto_evo/tasks/kernel_bench/eval"
-  results_path: "~/auto_evo/tasks/kernel_bench/results"
+  data_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/data"
+  src_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/eval"
+  eval_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/eval"
+  results_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/results"
   target_file_path: "kernels/BatchNorm/kernel.py"
   # pip_path: "python-bindings"
   # Log and transcript directories will be created if they don't exist.
-  log_dir: "~/auto_evo/tasks/kernel_bench/verbose"
-  transcript_dir: "~/auto_evo/tasks/kernel_bench/transcripts"
+  log_dir: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/verbose"
+  transcript_dir: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/transcripts"
   
 
 compilation:
-  conda_env: "kernel-bench"
+  conda_env: "pacevolve-kb"
   recompile_timeout: 600
   recompile_max_retries: 2
   edit_start_tag: "RegexTagCustomPruningAlgorithmStart"

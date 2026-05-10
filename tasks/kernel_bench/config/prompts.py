@@ -31,7 +31,7 @@ def read_file(file_path: str) -> str:
 
 def load_kernel_prompt(
     kernel_name: str,
-    base_src_path: str = "~/auto_evo/tasks/kernel_bench/src/kernels/",
+    base_src_path: str = "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/eval/kernels/",
     filename: str = "kernel_archive.py"
 ) -> str:
     """
@@ -56,6 +56,8 @@ def load_kernel_prompt(
     # print(f"Loading kernel prompt from: {file_path}")
     
     # Use the read_file utility to get the content
+    if not os.path.exists(file_path):
+        return f"# Missing kernel archive for {kernel_name}: expected {file_path}\n"
     return read_file(file_path)
 
 BATCHNORM = load_kernel_prompt("BatchNorm")
@@ -172,7 +174,7 @@ def my_custom_op(input):
 
 #### 7. Compatibility and Compute Capability
 
-* Ensure that the CUDA code is compatible with the target GPU’s compute capability (A100-SXM4-40GB).
+* Ensure that the CUDA code is compatible with the target GPU’s compute capability (RTX 4090 24G).
 
 ### Additional Best Practices
 
