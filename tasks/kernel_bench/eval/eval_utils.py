@@ -24,23 +24,31 @@ class EvalConfig:
   """Evaluation configuration for a single consistent hashing scenario."""
   dataset: str
 
+def _kernel_base_path(config: dict) -> str:
+    runtime_config = config.get('runtime', {})
+    if runtime_config.get('kernel_base_path'):
+      return os.path.expanduser(runtime_config['kernel_base_path'])
+
+    src_path = os.path.expanduser(config['paths']['src_path'])
+    return os.path.join(src_path, "kernels", config['evaluation']['kernel_name'])
+
 def _build_eval_command(config: dict) -> str:
     EVAL_PATH = os.path.expanduser(config['paths']['eval_path'])
-    SRC_PATH = os.path.expanduser(config['paths']['src_path'])
     EVAL_SCRIPT = os.path.join(
       EVAL_PATH, config['evaluation']['eval_script_name']
     )
     baseline_unversioned = config['evaluation']['kernel_name'].split("-")[0]
     BASELINE_PATH = os.path.join(EVAL_PATH, "baseline", baseline_unversioned+".py")
-    KERNEL_BASE_PATH = os.path.join(SRC_PATH, "kernels", config['evaluation']['kernel_name'])
+    KERNEL_BASE_PATH = _kernel_base_path(config)
     KERNEL_PATH = os.path.join(KERNEL_BASE_PATH, "kernel.py")
     conda_env = config['compilation']['conda_env']
-    return (
-      f"conda run -n {conda_env} bash -lc "
-      f"'python {EVAL_SCRIPT} --baseline_path {BASELINE_PATH} "
-      f"--kernel_path {KERNEL_PATH} --baseline_time {config['evaluation']['baseline_time']} "
-      f"--build_dir {KERNEL_BASE_PATH}'"
+    inner_command = (
+      f"python {EVAL_SCRIPT} --baseline_path {BASELINE_PATH} "
+      f"--kernel_path {KERNEL_PATH} "
+      f"--baseline_time {config['evaluation']['baseline_time']} "
+      f"--build_dir {KERNEL_BASE_PATH}"
     )
+    return f"conda run -n {conda_env} bash -lc '{inner_command}'"
 
 def recompile_library(config: dict) -> CompletedProcess:
     comp_config = config['compilation']

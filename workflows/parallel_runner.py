@@ -12,6 +12,7 @@ import dataclasses
 import importlib
 import logging
 import os
+import shutil
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, Future
@@ -45,6 +46,32 @@ class IterationResult:
     success: bool = False
     error: Optional[str] = None
     elapsed: float = 0.0
+    kernel_workspace: Optional[str] = None
+
+
+def _prepare_iteration_workspace(config: dict, iteration: int, island_id: int):
+    """Create an isolated, reusable kernel.py/build directory for one worker."""
+    import task_utils
+
+    local_config = deepcopy(config)
+    src_path = os.path.expanduser(local_config['paths']['src_path'])
+    template_kernel_path = os.path.join(src_path, local_config['paths']['target_file_path'])
+
+    kernel_name = local_config['evaluation']['kernel_name']
+    eval_path = os.path.expanduser(local_config['paths']['eval_path'])
+    workspace_root = os.path.join(eval_path, "kernels", "parallel", kernel_name)
+    kernel_workspace = os.path.join(workspace_root, f"worker_{os.getpid()}")
+    os.makedirs(kernel_workspace, exist_ok=True)
+
+    workspace_kernel_path = os.path.join(kernel_workspace, "kernel.py")
+    shutil.copyfile(template_kernel_path, workspace_kernel_path)
+
+    local_config.setdefault('runtime', {})['kernel_base_path'] = kernel_workspace
+    compile_config = task_utils.CompilationConfig(
+        target_file_path=workspace_kernel_path,
+        pip_path=None,
+    )
+    return local_config, compile_config, kernel_workspace
 
 
 def _worker_init(config_dict: dict, project_root: str, workflows_dir: str):
@@ -107,14 +134,19 @@ def _run_island_iteration(
         ContentChunk = llm_utils.ContentChunk
         AlgorithmTrial = workflow_utils.AlgorithmTrial
 
-        config = _worker_config
+        config, compile_config, kernel_workspace = _prepare_iteration_workspace(
+            _worker_config, iteration, island_id
+        )
         llm_name = _worker_llm_name
         prompts = _worker_prompts
-        compile_config = _worker_compile_config
         eval_configs = _worker_eval_configs
+        result.kernel_workspace = kernel_workspace
 
         transcript = Transcript(log_filename=transcript_file)
-        transcript.log_debug_message(f"### Starting parallel iteration {iteration} on island {island_id}")
+        transcript.log_debug_message(
+            f"### Starting parallel iteration {iteration} on island {island_id}; "
+            f"kernel workspace: {kernel_workspace}"
+        )
         trial = AlgorithmTrial()
 
         sota_algo = parent_code
@@ -281,6 +313,12 @@ async def run_parallel_evolution(
         f"Starting parallel evolution: {max_iters} iterations, "
         f"{num_workers} workers, {num_islands} islands"
     )
+    if num_islands < num_workers:
+        logger.warning(
+            "Parallel workers can be underutilized because each island has at "
+            "most one in-flight iteration. Increase database.num_islands to "
+            "match --num_workers for full parallelism."
+        )
 
     executor = ProcessPoolExecutor(
         max_workers=num_workers,

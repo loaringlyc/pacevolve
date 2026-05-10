@@ -22,7 +22,7 @@ llm:
   max_try_count: 5
 
 experiment:
-  max_iters: 20
+  max_iters: 50
   task_id: "kernel_bench"
   max_hparam_iters: 0
   sota_algo_name: "SOFTMAX" # From prompts.py
@@ -35,7 +35,7 @@ paths:
   src_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/eval"
   eval_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/eval"
   results_path: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/results"
-  target_file_path: "kernels/Softmax/kernel.py"
+  target_file_path: "kernels/parallel/Softmax/kernel.py"
   # pip_path: "python-bindings"
   # Log and transcript directories will be created if they don't exist.
   log_dir: "~/Documents/cs/mlsys/pacevolve/tasks/kernel_bench/verbose"
@@ -64,7 +64,7 @@ evaluation:
     - dataset: "fineweb"
 
 database:
-  num_islands: 1
+  num_islands: 4
   tournament_size: 2
   top_k: 4
   max_queue_size: 100
