@@ -1,14 +1,5 @@
 # PACEvolve: Enabling Long-Horizon Progress-Aware Consistent Evolution
 
-## Table of Contents
-1. [About the Project](#about-the-project)
-2. [Prerequisites](#prerequisites)
-3. [Installation & Usage](#installation--usage)
-4. [Support & Contribution](#support--contribution)
-5. [License](#license)
-
----
-
 ## About the Project
 
 This repo contains implementation for the [PACEvolve](https://arxiv.org/pdf/2601.10657) paper.
@@ -62,7 +53,7 @@ rsync -a KernelBench/KernelBench/ pacevolve/tasks/kernel_bench/KernelBench/
 pip install -r KernelBench/requirements.txt
 cd pacevolve/tasks/kernel_bench
 pip install -e .
-
+```
 
 ---
 
