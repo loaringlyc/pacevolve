@@ -30,6 +30,56 @@ _worker_eval_configs = None
 _worker_llm_name = None
 _worker_prompts = None
 _worker_task_eval_utils = None
+_worker_log_file = None
+
+
+def _parallel_run_id_from_transcript(transcript_file: str) -> str:
+    """Derive the run id used by run_experiment.py from transcript_<id>.txt."""
+    stem = os.path.splitext(os.path.basename(transcript_file))[0]
+    if stem.startswith("transcript_"):
+        return stem[len("transcript_"):]
+    return stem or time.strftime("%Y%m%d_%H%M%S")
+
+
+def _worker_artifact_path(config: dict, path_key: str, run_id: str, suffix: str) -> str:
+    kernel_name = config['evaluation']['kernel_name']
+    artifact_dir = os.path.join(
+        os.path.expanduser(config['paths'][path_key]),
+        kernel_name,
+        run_id,
+    )
+    os.makedirs(artifact_dir, exist_ok=True)
+    return os.path.join(artifact_dir, f"worker_{os.getpid()}{suffix}")
+
+
+def _configure_worker_logger(config_dict: dict) -> None:
+    """Give each worker process its own controller log file keyed by PID."""
+    global _worker_log_file
+
+    run_id = config_dict.get('_parallel_run_id') or time.strftime("%Y%m%d_%H%M%S")
+    _worker_log_file = _worker_artifact_path(config_dict, "log_dir", run_id, ".log")
+
+    worker_logger = logging.getLogger("controller")
+    worker_logger.setLevel(logging.DEBUG)
+    worker_logger.propagate = False
+
+    for handler in list(worker_logger.handlers):
+        if isinstance(handler, logging.FileHandler):
+            worker_logger.removeHandler(handler)
+            handler.close()
+
+    if any(getattr(h, "_pacevolve_worker_log_file", None) == _worker_log_file for h in worker_logger.handlers):
+        return
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - [pid=%(process)d] - %(message)s"
+    )
+    file_handler = logging.FileHandler(_worker_log_file)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    file_handler._pacevolve_worker_log_file = _worker_log_file
+    worker_logger.addHandler(file_handler)
+    worker_logger.info(f"Worker logger initialized: {_worker_log_file}")
 
 
 @dataclasses.dataclass
@@ -47,6 +97,8 @@ class IterationResult:
     error: Optional[str] = None
     elapsed: float = 0.0
     kernel_workspace: Optional[str] = None
+    worker_log_file: Optional[str] = None
+    worker_transcript_file: Optional[str] = None
 
 
 def _prepare_iteration_workspace(config: dict, iteration: int, island_id: int):
@@ -85,6 +137,8 @@ def _worker_init(config_dict: dict, project_root: str, workflows_dir: str):
         sys.path.insert(0, project_root)
 
     import task_utils
+
+    _configure_worker_logger(config_dict)
 
     _worker_config = config_dict
     _worker_llm_name = config_dict['llm']['name']
@@ -141,11 +195,17 @@ def _run_island_iteration(
         prompts = _worker_prompts
         eval_configs = _worker_eval_configs
         result.kernel_workspace = kernel_workspace
+        result.worker_log_file = _worker_log_file
 
-        transcript = Transcript(log_filename=transcript_file)
+        run_id = config.get('_parallel_run_id') or _parallel_run_id_from_transcript(transcript_file)
+        worker_transcript_file = _worker_artifact_path(config, "transcript_dir", run_id, ".txt")
+        result.worker_transcript_file = worker_transcript_file
+
+        transcript = Transcript(log_filename=worker_transcript_file)
         transcript.log_debug_message(
             f"### Starting parallel iteration {iteration} on island {island_id}; "
-            f"kernel workspace: {kernel_workspace}"
+            f"pid: {os.getpid()}; kernel workspace: {kernel_workspace}; "
+            f"worker log: {_worker_log_file}; worker transcript: {worker_transcript_file}"
         )
         trial = AlgorithmTrial()
 
@@ -292,6 +352,7 @@ async def run_parallel_evolution(
 
     config_for_workers = deepcopy(config)
     config_for_workers['_dataset_id'] = args.dataset_id
+    config_for_workers['_parallel_run_id'] = _parallel_run_id_from_transcript(transcript_file)
 
     per_island_count = [0] * num_islands  # Increment on submit (for trigger_merge, matches sequential)
     per_island_completed = [0] * num_islands  # Increment on success (for crossover/backtrack trigger)
@@ -524,6 +585,11 @@ async def run_parallel_evolution(
                     f"Iteration {result.iteration} (island {island_id}) completed in "
                     f"{result.elapsed:.1f}s  score={result.eval_score}"
                 )
+                if result.worker_log_file or result.worker_transcript_file:
+                    logger.info(
+                        f"Iteration {result.iteration} worker artifacts: "
+                        f"log={result.worker_log_file}, transcript={result.worker_transcript_file}"
+                    )
                 if result.summary_bullets:
                     logger.info("Summary: " + " | ".join(result.summary_bullets[:3]))
             else:
@@ -533,6 +599,11 @@ async def run_parallel_evolution(
                     f"Iteration {result.iteration} (island {island_id}) failed: "
                     f"{result.error or 'unknown'}"
                 )
+                if result.worker_log_file or result.worker_transcript_file:
+                    logger.info(
+                        f"Iteration {result.iteration} worker artifacts: "
+                        f"log={result.worker_log_file}, transcript={result.worker_transcript_file}"
+                    )
 
             completed += 1
             while _submit_one():

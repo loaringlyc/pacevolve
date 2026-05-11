@@ -416,6 +416,7 @@ if __name__ == "__main__":
       transcript.append(ContentChunk(prompt_text, "user", tags=["initial_prompt"]))
       llm_response_text = llm_utils.generate_completion(llm_name, transcript, config)
       transcript.append(ContentChunk(llm_response_text, "model", tags=["initial_response"]))
+    
     # Extract code blocks from the LLM response and compile the code.
     trial = workflow_utils.edit_until_compile(
       llm_name, trial, transcript, compile_config, config,
