@@ -33,13 +33,36 @@ The project relies on specific directory structures to locate tasks and configur
 
 ### 1. Installation
 
-Clone the repository and install the required dependencies.
+Create the conda environment and install PACEvolve:
 
 ```bash
-git clone [https://github.com/MinghaoYan/PACEvolve.git](https://github.com/MinghaoYan/PACEvolve.git)
-cd auto-evo
+conda create -n pacevolve-kb python=3.10 -y
+conda activate pacevolve-kb
+
+git clone https://github.com/loaringlyc/pacevolve.git
+cd pacevolve
+git checkout 22798d9f30c00e12e71225cd1cb1325c48f133ad
+
+pip install -U pip setuptools wheel
 pip install -r requirements.txt
 ```
+
+Install KernelBench v0 and copy the required files into PACEvolve:
+
+```bash
+cd ..
+git clone --depth 1 --branch v0 https://github.com/ScalingIntelligence/KernelBench.git
+cd KernelBench
+git checkout 6500bbc8cf102520d7a8f09be34ee6d5db1c29b0
+cd ..
+
+rsync -a KernelBench/src/ pacevolve/tasks/kernel_bench/src/
+rsync -a KernelBench/KernelBench/ pacevolve/tasks/kernel_bench/KernelBench/
+
+pip install -r KernelBench/requirements.txt
+cd pacevolve/tasks/kernel_bench
+pip install -e .
+
 
 ---
 
@@ -51,27 +74,48 @@ You must configure the API keys and install the necessary packages for the model
 Export the environment variables for the providers you plan to use:
 
 ```bash
-# For Google Gemini
-export GOOGLE_API_KEY="your_gemini_key"
-
-# For OpenAI (GPT-4)
-export OPENAI_API_KEY="your_openai_key"
-
-# For Anthropic (Claude)
-export ANTHROPIC_API_KEY="your_anthropic_key"
+export DEEPSEEK_API_KEY="<your-api-key>"
 
 # Install all supported clients
-pip install google-generativeai openai anthropic
+pip install openai 
 ```
 
 Each task contains a config.yaml file in the config subdirectory, you can change the backbone llm by changing the llm section in the config file.
 
 
-### 3. Running Your First Experiment
+### 3. Evaluating One Kernel
+Before running evolutionary search, verify the KernelBench evaluator directly.
+This example evaluates the generated Softmax kernel against the PyTorch
+baseline:
+
+```bash
+cd pacevolve/tasks/kernel_bench
+
+conda run -n pacevolve-kb bash -lc '
+python eval/eval_auto_evo.py \
+  --baseline_path eval/baseline/Softmax.py \
+  --kernel_path   eval/kernels/Softmax/kernel.py \
+  --baseline_time 0.008750 \
+  --build_dir     eval/kernels/Softmax
+'
+```
+
+### 4. Running Your First Experiment
 To run the evolutionary process, execute the script with a specific task_id. This assumes you have a task configuration file located at ../tasks/<task_id>/config/.
 
 ```bash
-python run_experiment.py --task_id "my_task"
+python run_experiment.py --task_id kernel_bench --run_id 10
+```
+
+Run the parallel pipeline with four workers:
+
+```bash
+cd pacevolve/workflows
+python run_experiment.py \
+  --task_id kernel_bench \
+  --run_id 10 \
+  --parallel \
+  --num_workers 4
 ```
 
 ---
