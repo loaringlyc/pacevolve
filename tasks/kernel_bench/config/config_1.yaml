@@ -54,7 +54,7 @@ evaluation:
   eval_max_retries: 1
   eval_script_name: "eval_auto_evo.py"
   kernel_name: "BatchNorm"
-  baseline_time: 0.851
+  baseline_time: 0.912
   target_score: 3
   init_score: 1
   baseline_diff_metric: "mean_variance"

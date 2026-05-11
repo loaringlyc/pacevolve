@@ -54,7 +54,7 @@ evaluation:
   eval_max_retries: 1
   eval_script_name: "eval_auto_evo.py"
   kernel_name: "Softmax"
-  baseline_time: 0.035
+  baseline_time: 0.008750
   target_score: 3
   init_score: 1
   baseline_diff_metric: "mean_variance"
